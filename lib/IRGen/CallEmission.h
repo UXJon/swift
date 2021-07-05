@@ -64,6 +64,18 @@ protected:
   bool EmittedCall;
 
   virtual void setFromCallee();
+
+  /// Indicates that the emitted call should have a 
+  /// "must tail" attribute. 
+  ///
+  /// NOTE: Calls with this attribute must be in the same block as a
+  /// function exit with no side-effect-having instructions 
+  /// between the call and the return instruction. Calls that violate
+  /// this will hit an llvm assertion.
+  bool IsMustTail = false;
+
+  void setFromCallee();
+
   void emitToUnmappedMemory(Address addr);
   void emitToUnmappedExplosion(Explosion &out);
   virtual void emitCallToUnmappedExplosion(llvm::CallInst *call, Explosion &out) = 0;
@@ -109,6 +121,8 @@ public:
 
     return emitCallSite();
   }
+
+  void setMustTail() { IsMustTail = true; }
 
   TemporarySet claimTemporaries() {
     // Move the actual temporary set out.
