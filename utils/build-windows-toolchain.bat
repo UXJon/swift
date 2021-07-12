@@ -21,7 +21,7 @@ set BuildRoot=%SourceRoot%\build
 
 md %BuildRoot%
 subst T: /d
-subst T: %FullBuildRoot% || (exit /b)
+subst T: %BuildRoot% || (exit /b)
 set BuildRoot=T:
 
 :: Identify the InstallRoot
