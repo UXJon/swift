@@ -12,11 +12,8 @@ setlocal enableextensions enabledelayedexpansion
 path %PATH%;%PYTHON_HOME%
 
 :: Identify the SourceRoot
-set SourceRoot=%~dp0
-set SourceRoot=%SourceRoot:~0,-1%
-set SourceRoot=%SourceRoot%\..\..
 :: Normalize the SourceRoot to make it easier to read the output.
-cd %SourceRoot%
+cd %~dp0\..\..
 set SourceRoot=%CD%
 
 :: Identify the BuildRoot
