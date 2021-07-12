@@ -33,7 +33,7 @@ set TEMP=%BuildRoot%\tmp
 set TMP=%BuildRoot%\tmp
 set TMPDIR=%BuildRoot%\tmp
 
-:CloneDependencies
+call :CloneDependencies || (exit /b)
 :: call :CloneRepositories || (exit /b)
 
 :: build zlib
