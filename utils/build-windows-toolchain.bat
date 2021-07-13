@@ -75,7 +75,7 @@ cmake --build "%BUildRoot%\libxml2" --target install || (exit /b)
 :: build curl
 cmake ^
   -B %BuildRoot%\curl ^
-  -B BUILD_SHARED_LIBS=NO ^
+  -D BUILD_SHARED_LIBS=NO ^
   -D BUILD_TESTING=NO ^
   -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
   -D CMAKE_C_COMPILER=cl ^
@@ -145,6 +145,9 @@ setlocal enableextensions enabledelayedexpansion
 
 :: Always enable symbolic links
 git config --global core.symlink true
+
+:: FIXME(compnerd) avoid the fresh clone
+rd /s /q zlib libxml2 sqlite icu curl
 
 git clone --quiet --no-tags --depth 1 --branch v1.2.11 https://github.com/madler/zlib
 git clone --quiet --no-tags --depth 1 --branch v2.9.12 https://github.com/gnome/libxml2
