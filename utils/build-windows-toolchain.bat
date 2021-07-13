@@ -41,8 +41,12 @@ cmake ^
   -B %BuildRoot%\zlib ^
   -D BUILD_SHARED_LIBS=NO ^
   -D BUILD_TESTING=NO ^
+  -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
   -D CMAKE_C_COMPILER=cl ^
   -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\zlib-1.2.11\usr ^
+
+  -D SKIP_INSTALL_FILES=YES ^
+
   -G Ninja ^
   -S %SourceRoot%\zlib || (exit /b)
 cmake --build "%BUildRoot%\zlib" || (exit /b)
@@ -52,10 +56,8 @@ cmake --build "%BUildRoot%\zlib" --target install || (exit /b)
 cmake ^
   -B %BuildRoot%\libxml2 ^
   -D BUILD_SHARED_LIBS=NO ^
-  -D BUILD_TESTING=NO ^
   -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
   -D CMAKE_C_COMPILER=cl ^
-  -D CMAKE_CXX_COMPILER=cl ^
   -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\libxml2-2.9.12\usr ^
 
   -D LIBXML2_WITH_ICONV=NO ^
