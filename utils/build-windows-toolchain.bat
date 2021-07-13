@@ -62,6 +62,7 @@ cmake ^
   -D LIBXML2_WITH_ICU=NO ^
   -D LIBXML2_WITH_LZMA=NO ^
   -D LIBXML2_WITH_PYTHON=NO ^
+  -D LIBXML2_WITH_TESTS=NO ^
   -D LIBXML2_WITH_THREADS=YES ^
   -D LIBXML2_WITH_ZLIB=NO ^
 
@@ -72,6 +73,9 @@ cmake --build "%BUildRoot%\libxml2" --target install || (exit /b)
 
 :: Clean up the module cache
 rd /s /q %LocalAppData%\clang\ModuleCache
+
+goto :end
+endlocal
 
 :CloneRepositories
 setlocal enableextensions enabledelayedexpansion
@@ -88,6 +92,7 @@ git -C "%SourceRoot%\swift" checkout-index --force --all
 
 set "args=%args% --skip-repository swift"
 set "args=%args% --skip-repository ninja"
+set "args=%args% --skip-repository icu"
 set "args=%args% --skip-repository swift-integration-tests"
 set "args=%args% --skip-repository swift-xcode-playground-support"
 
@@ -102,10 +107,12 @@ setlocal enableextensions enabledelayedexpansion
 :: Always enable symbolic links
 git config --global core.symlink true
 
-git clone --no-tags --depth 1 --branch v1.2.11 https://github.com/madler/zlib
-git clone --no-tags --depth 1 --branch v2.9.12 https://github.com/gnome/libxml2
-git clone --no-tags --depth 1 --branch version-3.36.0 https://github.com/sqlite/sqlite
-git clone --no-tags --depth 1 --branch maint/maint-67 https://github.com/unicode-org/icu
+git clone --quiet --no-tags --depth 1 --branch v1.2.11 https://github.com/madler/zlib
+git clone --quiet --no-tags --depth 1 --branch v2.9.12 https://github.com/gnome/libxml2
+git clone --quiet --no-tags --depth 1 --branch version-3.36.0 https://github.com/sqlite/sqlite
+git clone --quiet --no-tags --depth 1 --branch maint/maint-67 https://github.com/unicode-org/icu
 
 goto :eof
 endlocal
+
+:end
