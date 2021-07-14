@@ -176,7 +176,7 @@ cmake ^
   -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
   -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
 
-  -D LLVM_DIR=%BuildRoot%\1\llvm\lib\cmake\llvm ^
+  -D LLVM_DIR=%BuildRoot%\1\lib\cmake\llvm ^
   -D SWIFT_NATIVE_SWIFT_TOOLS_PATH=%BuildRoot%\1\bin ^
   -D SWIFT_PATH_TO_LIBDISPATCH_SOURCE=%SourceRoot%\swift-corelibs-libdispatch ^
 
