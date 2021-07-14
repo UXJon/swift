@@ -34,7 +34,11 @@ set TMP=%BuildRoot%\tmp
 set TMPDIR=%BuildRoot%\tmp
 
 call :CloneDependencies || (exit /b)
-:: call :CloneRepositories || (exit /b)
+call :CloneRepositories || (exit /b)
+
+:: TODO(compnerd) build ICU from source
+curl.exe -OL "https://github.com/unicode-org/icu/releases/download/release-67-1/icu4c-67_1-Win64-MSVC2017.zip" || (exit /b)
+"%ProgramFiles%\Git\usr\bin\unzip.exe" -o icuc-67_1-Win64-MSVC2017.zip -d %BuildRoot%\Library\icu-67.1
 
 :: build zlib
 cmake ^
@@ -109,6 +113,46 @@ cmake ^
   -S %SourceRoot%\curl || (exit /b)
 cmake --build "%BuildRoot%\curl" || (exit /b)
 cmake --build "%BuildRoot%\curl" --target install || (exit /b)
+
+cmake ^
+  -B "%BuildRoot%\1" ^
+
+  -C %SourceRoot%\swift\cmake\caches\Windows-x86_64.cmake ^
+
+  -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
+  -D CMAKE_C_COMPILER=cl ^
+  -D CMAKE_CXX_COMPILER=cl ^
+  -D CMAKE_CXX_FLAGS="/GS- /Oy" ^
+  -D CMAKE_INSTALL_PREFIX="%InstallRoot%" ^
+  -D CMAKE_MT=mt ^
+
+  -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
+  -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
+  -D PACKAGE_VENDOR="swift.org" ^
+  -D CLANG_VENDOR="swift.org" ^
+  -D CLANG_VENDOR_UTI="org.swift" ^
+  -D LLVM_APPEND_VC_REV=NO ^
+  -D LLVM_VERSION_SUFFIX="" ^
+
+  -D SWIFT_ENABLE_EXPERIMENTAL_CONCURRENCY=YES ^
+  -D SWIFT_ENABLE_EXPERIMENTAL_DISTRIBUTED=YES ^
+  -D SWIFT_ENABLE_EXPERIMENTAL_DIFFERENTIABLE_PROGRAMMING=YES ^
+
+  -D LLVM_EXTERNAL_SWIFT_SOURCE_DIR="%SourceRoot%\swift" ^
+  -D LLVM_EXTERNAL_CMARK_SOURCE_DIR="%SourceRoot%\cmark" ^
+  -D PYTHON_HOME="%PYTHON_HOME%" ^
+  -D PYTHON_EXECUTABLE="%PYTHON_HOME%\python.exe" ^
+  -D SWIFT_PATH_TO_LIBDISPATCH_SOURCE="%SourceRoot%\swift-corelibs-libdispatch" ^
+  -D SWIFT_WINDOWS_x86_64_ICU_UC_INCLUDE="%BuildRoot%\Library\icu-67.1\include\unicode" ^
+  -D SWIFT_WINDOWS_x86_64_ICU_UC="%BuildRoot%\Library\icu-67.1\lib64\icuuc.lib" ^
+  -D SWIFT_WINDOWS_x86_64_ICU_I18N_INCLUDE="%BuildRoot%\Library\icu-67.1\include" ^
+  -D SWIFT_WINDOWS_x86_64_ICU_I18N="%BuildRoot%\Library\icu-67.1\lib64\icuin.lib" ^
+
+  -G Ninja ^
+  -S llvm-project\llvm || (exit /b)
+cmake --build "%BuildRoot%\1 || (exit /b)
+cmake --build "%BuildRoot%\1" --target install || (exit /b)
 
 :: Clean up the module cache
 rd /s /q %LocalAppData%\clang\ModuleCache
