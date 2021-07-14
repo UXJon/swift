@@ -169,8 +169,8 @@ cmake ^
   -C %SourceRoot%\swift\cmake\caches\Runtime-Windows-x86_64.cmake ^
 
   -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
-  -D CMAKE_C_COMPILER=%BuildRoot%\1\bin\clang-cl.exe ^
-  -D CMAKE_CXX_COMPILER=%BuildRoot%\1\bin\clang-cl.exe ^
+  -D CMAKE_C_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_CXX_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
   -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
 
   -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
