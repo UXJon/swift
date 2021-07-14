@@ -151,7 +151,7 @@ cmake ^
 
   -G Ninja ^
   -S llvm-project\llvm || (exit /b)
-cmake --build "%BuildRoot%\1 || (exit /b)
+cmake --build "%BuildRoot%\1" || (exit /b)
 cmake --build "%BuildRoot%\1" --target install || (exit /b)
 
 :: Clean up the module cache
