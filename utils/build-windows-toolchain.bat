@@ -37,8 +37,8 @@ call :CloneDependencies || (exit /b)
 call :CloneRepositories || (exit /b)
 
 :: TODO(compnerd) build ICU from source
-curl.exe -OL "https://github.com/unicode-org/icu/releases/download/release-67-1/icu4c-67_1-Win64-MSVC2017.zip" || (exit /b)
-"%ProgramFiles%\Git\usr\bin\unzip.exe" -o icuc-67_1-Win64-MSVC2017.zip -d %BuildRoot%\Library\icu-67.1
+curl.exe -sOL "https://github.com/unicode-org/icu/releases/download/release-67-1/icu4c-67_1-Win64-MSVC2017.zip" || (exit /b)
+"%ProgramFiles%\Git\usr\bin\unzip.exe" -o icu4c-67_1-Win64-MSVC2017.zip -d %BuildRoot%\Library\icu-67.1
 
 :: build zlib
 cmake ^
