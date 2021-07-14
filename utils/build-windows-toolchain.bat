@@ -142,8 +142,8 @@ cmake ^
 
   -D LLVM_EXTERNAL_SWIFT_SOURCE_DIR="%SourceRoot%\swift" ^
   -D LLVM_EXTERNAL_CMARK_SOURCE_DIR="%SourceRoot%\cmark" ^
-  -D PYTHON_HOME="%PYTHON_HOME%" ^
-  -D PYTHON_EXECUTABLE="%PYTHON_HOME%\python.exe" ^
+  -D PYTHON_HOME=%PYTHON_HOME% ^
+  -D PYTHON_EXECUTABLE=%PYTHON_HOME%\python.exe ^
   -D SWIFT_PATH_TO_LIBDISPATCH_SOURCE="%SourceRoot%\swift-corelibs-libdispatch" ^
   -D SWIFT_WINDOWS_x86_64_ICU_UC_INCLUDE="%BuildRoot%\Library\icu-67.1\include\unicode" ^
   -D SWIFT_WINDOWS_x86_64_ICU_UC="%BuildRoot%\Library\icu-67.1\lib64\icuuc.lib" ^
@@ -178,6 +178,7 @@ set "args=%args% --skip-repository swift"
 set "args=%args% --skip-repository ninja"
 set "args=%args% --skip-repository icu"
 set "args=%args% --skip-repository swift-integration-tests"
+set "args=%args% --skip-repository swift-stress-tester"
 set "args=%args% --skip-repository swift-xcode-playground-support"
 
 call "%SourceRoot%\swift\utils\update-checkout.cmd" %args% --clone --skip-history --github-comment "%ghprbCommentBody%"
