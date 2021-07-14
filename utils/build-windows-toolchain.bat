@@ -108,7 +108,7 @@ cmake ^
   -G Ninja ^
   -S %SourceRoot%\curl || (exit /b)
 cmake --build "%BuildRoot%\curl" || (exit /b)
-cmake --build "%BuildRoot%\curl" || (exit /b)
+cmake --build "%BuildRoot%\curl" --target install || (exit /b)
 
 :: Clean up the module cache
 rd /s /q %LocalAppData%\clang\ModuleCache
