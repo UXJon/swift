@@ -185,7 +185,7 @@ cmake ^
   -D SWIFT_ENABLE_EXPERIMENTAL_DIFFERENTIABLE_PROGRAMMING=YES ^
 
   -G Ninja ^
-  -S %SourceRoot%\swift || (exit /b)cmake --build "%BuildRoot%\1" --target install || (exit /b)
+  -S %SourceRoot%\swift || (exit /b)
 cmake --build %BuildRoot%\2 || (exit /b)
 cmake --build %BuildRoot%\2 --target install || (exit /b)
 
