@@ -121,6 +121,7 @@ copy /y "%SourceRoot%\swift\stdlib\public\Platform\winsdk.modulemap" "%Universal
 copy /y "%SourceRoot%\swift\stdlib\public\Platform\visualc.modulemap" "%VCToolsInstallDir%\include\module.modulemap" || (exit /b)
 copy /y "%SourceRoot%\swift\stdlib\public\Platform\visualc.apinotes" "%VCToolsInstallDir%\include\visualc.apinotes" || (exit /b)
 
+:: Build Toolchain
 cmake ^
   -B "%BuildRoot%\1" ^
 
@@ -160,6 +161,33 @@ cmake ^
   -S llvm-project\llvm || (exit /b)
 cmake --build "%BuildRoot%\1" || (exit /b)
 cmake --build "%BuildRoot%\1" --target install || (exit /b)
+
+:: Build Swift Standard Library
+cmake ^
+  -B %BuildRoot%\2 ^
+
+  -C %SourceRoot%\swift\cmake\caches\Runtime-Windows-x86_64.cmake ^
+
+  -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
+  -D CMAKE_C_COMPILER=%BuildRoot%\1\bin\clang-cl.exe ^
+  -D CMAKE_CXX_COMPILER=%BuildRoot%\1\bin\clang-cl.exe ^
+  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
+
+  -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
+  -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
+  -D LLVM_DIR=%BuildRoot%\1\llvm\lib\cmake\llvm ^
+  -D SWIFT_NATIVE_SWIFT_TOOLS_PATH=%BuildRoot%\1\bin ^
+  -D SWIFT_PATH_TO_LIBDISPATCH_SOURCE=%SourceRoot%\swift-corelibs-libdispatch ^
+
+  -D SWIFT_ENABLE_EXPERIMENTAL_CONCURRENCY=YES ^
+  -D SWIFT_ENABLE_EXPERIMENTAL_DISTRIBUTED=YES ^
+  -D SWIFT_ENABLE_EXPERIMENTAL_DIFFERENTIABLE_PROGRAMMING=YES ^
+
+  -G Ninja ^
+  -S %SourceRoot%\swift || (exit /b)cmake --build "%BuildRoot%\1" --target install || (exit /b)
+cmake --build %BuildRoot%\2 || (exit /b)
+cmake --build %BuildRoot%\2 --target install || (exit /b)
 
 :: Clean up the module cache
 rd /s /q %LocalAppData%\clang\ModuleCache
