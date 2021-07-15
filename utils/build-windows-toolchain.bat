@@ -141,6 +141,7 @@ cmake ^
   -D ENABLE_THREADED_RESOLVER=NO ^
 
   -D ZLIB_ROOT=%BuildRoot%\Library\zlib-1.2.11\usr ^
+  -D ZLIB_LIBRARY=%BuildRoot%\Library\zlib-1.2.11\usr\lib\zlibstatic.lib ^
 
   -G Ninja ^
   -S %SourceRoot%\curl || (exit /b)
@@ -275,7 +276,7 @@ cmake ^
   -D ICU_I18N_LIBRARY=%BuildRoot%\Library\icu-67.1\lib64\icuin67.lib ^
   -D LIBXML2_LIBRARY=%BuildRoot%\Library\libxml2-2.9.12\usr\lib\libxml2s.lib ^
   -D LIBXML2_INCLUDE_DIR=%BuildRoot%\Library\libxml2-2.9.12\usr\include\libxml2 ^
-  -D ZLIB_LIBRARY=%BuildRoot%\Library\zlib-1.2.11\usr\zlibstatic.lib ^
+  -D ZLIB_LIBRARY=%BuildRoot%\Library\zlib-1.2.11\usr\lib\zlibstatic.lib ^
   -D ZLIB_INCLUDE_DIR=%BuildRoot%\Library\zlib-1.2.11\usr\include ^
   -D dispatch_DIR=%BuildRoot%\3\cmake\modules ^
 
