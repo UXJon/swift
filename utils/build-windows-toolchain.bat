@@ -271,8 +271,8 @@ cmake ^
 
   -D CURL_DIR=%BuildRoot%\Library\curl-7.77.0\usr\lib\cmake\CURL ^
   -D ICU_ROOT=%BuildRoot%\Library\icu-67.1 ^
-  -D ICU_UC_LIBRARY_RELEASE=%BuildRoot%\Library\icu-67.1\lib64\icuuc67.lib ^
-  -D ICU_I18N_LIBRARY_RELEASE=%BuildRoot%\Library\icu-67.1\lib64\icuin67.lib ^
+  -D ICU_UC_LIBRARY=%BuildRoot%\Library\icu-67.1\lib64\icuuc67.lib ^
+  -D ICU_I18N_LIBRARY=%BuildRoot%\Library\icu-67.1\lib64\icuin67.lib ^
   -D LIBXML2_LIBRARY=%BuildRoot%\Library\libxml2-2.9.12\usr\lib\libxml2s.lib ^
   -D LIBXML2_INCLUDE_DIR=%BuildRoot%\Library\libxml2-2.9.12\usr\include\libxml2 ^
   -D ZLIB_LIBRARY=%BuildRoot%\Library\zlib-1.2.11\usr\zlibstatic.lib ^
