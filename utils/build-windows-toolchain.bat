@@ -171,7 +171,7 @@ cmake ^
   -D CMAKE_INSTALL_PREFIX="%InstallRoot%" ^
 
   -D LLVM_DEFAULT_TARGET_TRIPLE=x86_64-unknown-windows-msvc ^
-  
+
   -D PACKAGE_VENDOR="swift.org" ^
   -D CLANG_VENDOR="swift.org" ^
   -D CLANG_VENDOR_UTI="org.swift" ^
