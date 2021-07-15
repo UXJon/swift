@@ -44,11 +44,15 @@ md "%BuildRoot%\Library"
 :: build zlib
 cmake ^
   -B %BuildRoot%\zlib ^
+
   -D BUILD_SHARED_LIBS=NO ^
   -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
   -D CMAKE_C_COMPILER=cl ^
   -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
   -D CMAKE_MT=mt ^
+  -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
+  -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
   -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\zlib-1.2.11\usr ^
 
   -D SKIP_INSTALL_FILES=YES ^
@@ -61,11 +65,15 @@ cmake --build "%BUildRoot%\zlib" --target install || (exit /b)
 :: build libxml2
 cmake ^
   -B %BuildRoot%\libxml2 ^
+
   -D BUILD_SHARED_LIBS=NO ^
   -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
   -D CMAKE_C_COMPILER=cl ^
   -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
   -D CMAKE_MT=mt ^
+  -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
+  -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
   -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\libxml2-2.9.12\usr ^
 
   -D LIBXML2_WITH_ICONV=NO ^
@@ -84,12 +92,16 @@ cmake --build "%BUildRoot%\libxml2" --target install || (exit /b)
 :: build curl
 cmake ^
   -B %BuildRoot%\curl ^
+
   -D BUILD_SHARED_LIBS=NO ^
   -D BUILD_TESTING=NO ^
   -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
   -D CMAKE_C_COMPILER=cl ^
   -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
   -D CMAKE_MT=mt ^
+  -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
+  -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
   -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\curl-7.77.0\usr ^
 
   -D BUILD_CURL_EXE=NO ^
@@ -139,13 +151,13 @@ cmake ^
   -D CMAKE_CXX_COMPILER=cl ^
   -D CMAKE_CXX_FLAGS="/GS- /Oy /Gw /Gy" ^
   -D CMAKE_MT=mt ^
-  -D CMAKE_INSTALL_PREFIX="%InstallRoot%" ^
-
   -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
   -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
 
-  -D LLVM_DEFAULT_TARGET_TRIPLE=x86_64-unknown-windows-msvc ^
+  -D CMAKE_INSTALL_PREFIX="%InstallRoot%" ^
 
+  -D LLVM_DEFAULT_TARGET_TRIPLE=x86_64-unknown-windows-msvc ^
+  
   -D PACKAGE_VENDOR="swift.org" ^
   -D CLANG_VENDOR="swift.org" ^
   -D CLANG_VENDOR_UTI="org.swift" ^
@@ -182,10 +194,10 @@ cmake ^
   -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
   -D CMAKE_CXX_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
   -D CMAKE_CXX_FLAGS="/GS- /Oy /Gw /Gy" ^
-  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
-
   -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
   -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
+  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
 
   -D LLVM_DIR=%BuildRoot%\1\lib\cmake\llvm ^
   -D SWIFT_NATIVE_SWIFT_TOOLS_PATH=%BuildRoot%\1\bin ^
@@ -207,6 +219,7 @@ cmake --build %BuildRoot%\2 --target install || (exit /b)
 :: Build libdispatch
 cmake ^
   -B %BuildRoot%\3 ^
+
   -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
   -D CMAKE_C_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
   -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
@@ -214,10 +227,10 @@ cmake ^
   -D CMAKE_CXX_FLAGS="/GS- /Oy /Gw /Gy" ^
   -D CMAKE_MT=mt ^
   -D CMAKE_Swift_COMPILER=%BuildRoot%/1/bin/swiftc.exe ^
-  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
-
   -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
   -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
+  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
 
   -D ENABLE_SWIFT=YES ^
 
@@ -229,6 +242,7 @@ cmake --build %BuildRoot%\3 --target install || (exit /b)
 :: Build Foundation
 cmake ^
   -B %BuildRoot%\4 ^
+
   -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
   -D CMAKE_C_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
   -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
@@ -236,10 +250,10 @@ cmake ^
   -D CMAKE_CXX_FLAGS="/GS- /Oy /Gw /Gy" ^
   -D CMAKE_MT=mt ^
   -D CMAKE_Swift_COMPILER=%BuildRoot%/1/bin/swiftc.exe ^
-  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
-
   -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
   -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
+  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
 
   -D CURL_DIR=%BuildRoot%\Library\curl-7.77.0\usr\lib\cmake\CURL ^
   -D ICU_ROOT=%BuildRoot%\Library\icu-67.1 ^
@@ -255,6 +269,27 @@ cmake ^
   -S %SourceRoot%\swift-corelibs-foundation || (exit /b)
 cmake --build %BuildRoot%\4 || (exit /b)
 cmake --build %BuildRoot%\4 --target install || (exit /b)
+
+:: Build XCTest
+cmake ^
+  -B %BuildRoot%\5 ^
+  -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
+  -D CMAKE_C_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
+  -D CMAKE_CXX_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_CXX_FLAGS="/GS- /Oy /Gw /Gy" ^
+  -D CMAKE_MT=mt ^
+  -D CMAKE_Swift_COMPILER=%BuildRoot%/1/bin/swiftc.exe ^
+  -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
+  -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
+  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
+
+  -D dispatch_DIR=%BuildRoot%\3\cmake\modules ^
+  -D Foundation_DIR=%BuildRoot%\4\cmake\modules ^
+
+  -G Ninja ^
+  -S %SourceRoot%\swift-corelibs-xctest || (exit /b)
 
 :: Clean up the module cache
 rd /s /q %LocalAppData%\clang\ModuleCache
