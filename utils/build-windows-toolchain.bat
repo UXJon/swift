@@ -41,6 +41,20 @@ curl.exe -sOL "https://github.com/unicode-org/icu/releases/download/release-67-1
 md "%BuildRoot%\Library"
 "%SystemDrive%\Program Files\Git\usr\bin\unzip.exe" -o icu4c-67_1-Win64-MSVC2017.zip -d %BuildRoot%\Library\icu-67.1
 
+:: FIXME(compnerd) is there a way to build the sources without downloading the amalgamation?
+curl.exe -sOL "https://sqlite.org/2021/sqlite-amalgamation-3360000.zip" || (exit /b)
+"%SystemDrive%\Program Files\Git\usr\bin\unzip.exe" -o sqlite-amalgamation-3360000.zip -d %SourceRoot%
+
+:: TODO(compnerd) use CMakeLists.txt from compnerd/swift-build
+md %BuildRoot%\sqlite
+cl /nologo /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG /Fo%BuildRoot%\sqlite\sqlite3.c.obj /Fd%BuildRoot%\sqlite\SQLite3.pdb /FS -c %SourceRoot%\sqlite-amalgamation-3360000\sqlite3.c
+lib /nologo /machine:x64 /out:%BuildRoot%\sqlite\SQLite3.lib %BuildRoot%\sqlite\sqlite3.c.obj
+md %BuildRoot%\Library\sqlite-3.36.0\usr\lib
+md %BuildRoot%\Library\sqlite-3.36.0\usr\include
+copy %BuildRoot%\sqlite\SQLite3.lib %BuildRoot%\Library\sqlite-3.36.0\usr\lib
+copy %SourceRoot%\sqlite-amalgamation-3360000\sqlite3.h %BuildRoot%\Library\sqlite-3.36.0\usr\include
+copy %SourceRoot%\sqlite-amalgamation-3360000\sqlite3ext.h %BuildRoot%\Library\sqlite-3.36.0\usr\include
+
 :: build zlib
 cmake ^
   -B %BuildRoot%\zlib ^
@@ -273,6 +287,7 @@ cmake --build %BuildRoot%\4 --target install || (exit /b)
 :: Build XCTest
 cmake ^
   -B %BuildRoot%\5 ^
+
   -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
   -D CMAKE_C_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
   -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
@@ -290,6 +305,34 @@ cmake ^
 
   -G Ninja ^
   -S %SourceRoot%\swift-corelibs-xctest || (exit /b)
+cmake --build %BuildRoot%\5 || (exit /b)
+cmake --build %BuildRoot%\5 --target install || (exit /b)
+
+:: Build swift-tools-support-core
+cmake ^
+  -B %BuildRoot%\6 ^
+
+  -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
+  -D CMAKE_C_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
+  -D CMAKE_CXX_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_CXX_FLAGS="/GS- /Oy /Gw /Gy" ^
+  -D CMAKE_MT=mt ^
+  -D CMAKE_Swift_COMPILER=%BuildRoot%/1/bin/swiftc.exe ^
+  -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
+  -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
+  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
+
+  -D dispatch_DIR=%BuildRoot%\3\cmake\modules ^
+  -D Foundation_DIR=%BuildRoot%\4\cmake\modules ^
+  -D SQLite3_INCLUDE_DIR=%BuildRoot%\Library\sqlite-3.36.0\usr\include ^
+  -D SQLite3_LIBRARY=%BuildRoot%\Library\sqlite-3.36.0\usr\ib\SQLite3.lib ^
+
+  -G Ninja ^
+  -S %SourceRoot%\swift-tools-support-core || (exit /b)
+cmake --build %BuildRoot%\6 || (exit /b)
+cmake --build %BuildRoot%\6 --target install || (exit /b)
 
 :: Clean up the module cache
 rd /s /q %LocalAppData%\clang\ModuleCache
