@@ -220,12 +220,41 @@ cmake ^
   -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
 
   -D ENABLE_SWIFT=YES ^
-  -D ENABLE_TESTING=YES ^
 
   -G Ninja ^
   -S %SourceRoot%\swift-corelibs-libdispatch || (exit /b)
 cmake --build %BuildRoot%\3 || (exit /b)
 cmake --build %BuildRoot%\3 --target install || (exit /b)
+
+:: Build Foundation
+cmake ^
+  -B %BuildRoot%\4 ^
+  -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
+  -D CMAKE_C_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
+  -D CMAKE_CXX_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_CXX_FLAGS="/GS- /Oy /Gw /Gy" ^
+  -D CMAKE_MT=mt ^
+  -D CMAKE_Swift_COMPILER=%BuildRoot%/1/bin/swiftc.exe ^
+  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
+
+  -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
+  -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
+  -D CURL_DIR=%BuildRoot%\Library\curl-7.77.0\usr\lib\cmake\CURL ^
+  -D ICU_ROOT=%BuildRoot%\Library\icu-67.1 ^
+  -D ICU_UC_LIBRARY_RELEASE=%BuildRoot%\Library\icu-67.1\lib\icuuc67.lib ^
+  -D ICU_I18N_LIBRARY_RELEASE=%BuildRoot%\Library\icu-67.1\lib\icuin67.lib ^
+  -D LIBXML2_LIBRARY=%BuildRoot%\Library\libxml2-2.9.12\usr\lib\libxml2s.lib ^
+  -D LIBXML2_INCLUDE_DIR=%BuildRoot%\Library\libxml2-2.9.12\usr\include\libxml2 ^
+  -D ZLIB_LIBRARY=%BuildRoot%\Library\zlib-1.2.11\usr\zlibstatic.lib ^
+  -D ZLIB_INCLUDE_DIR=%BuildRoot%\Library\zlib-1.2.11\usr\include ^
+  -D dispatch_DIR=%BuildRoot%\3\cmake\modules ^
+
+  -G Ninja ^
+  -S %SourceRoot%\swift-corelibs-foundation || (exit /b)
+cmake --build %BuildRoot%\4 || (exit /b)
+cmake --build %BuildRoot%\4 --target install || (exit /b)
 
 :: Clean up the module cache
 rd /s /q %LocalAppData%\clang\ModuleCache
