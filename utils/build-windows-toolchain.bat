@@ -221,7 +221,7 @@ cmake ^
   -D ENABLE_TESTING=YES ^
 
   -G Ninja ^
-  -S %SourceRoot%\swift-corelibs-lbdispatch || (exit /b)
+  -S %SourceRoot%\swift-corelibs-libdispatch || (exit /b)
 cmake --build %BuildRoot%\3 || (exit /b)
 cmake --build %BuildRoot%\3 --target install || (exit /b)
 
