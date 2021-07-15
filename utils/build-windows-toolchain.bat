@@ -144,6 +144,8 @@ cmake ^
   -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
   -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
 
+  -D LLVM_DEFAULT_TARGET_TRIPLE=x86_64-unknown-windows-msvc ^
+
   -D PACKAGE_VENDOR="swift.org" ^
   -D CLANG_VENDOR="swift.org" ^
   -D CLANG_VENDOR_UTI="org.swift" ^
