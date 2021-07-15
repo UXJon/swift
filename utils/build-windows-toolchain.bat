@@ -334,6 +334,34 @@ cmake ^
 cmake --build %BuildRoot%\6 || (exit /b)
 cmake --build %BuildRoot%\6 --target install || (exit /b)
 
+:: build llbuild
+cmake ^
+  -B %BuildRoot%\7 ^
+
+  -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
+  -D CMAKE_C_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
+  -D CMAKE_CXX_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_CXX_FLAGS="/GS- /Oy /Gw /Gy" ^
+  -D CMAKE_MT=mt ^
+  -D CMAKE_Swift_COMPILER=%BuildRoot%/1/bin/swiftc.exe ^
+  -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
+  -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
+  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
+
+  -D LLBUILD_SUPPORT_BINDINGS=Swift ^
+
+  -D dispatch_DIR=%BuildRoot%\3\cmake\modules ^
+  -D Foundation_DIR=%BuildRoot%\4\cmake\modules ^
+  -D SQLite3_INCLUDE_DIR=%BuildRoot%\Library\sqlite-3.36.0\usr\include ^
+  -D SQLite3_LIBRARY=%BuildRoot%\Library\sqlite-3.36.0\usr\lib\SQLite3.lib ^
+
+  -G Ninja ^
+  -S %SourceCache%\llbuild || (exit /b)
+cmake --build %BuildRoot%\7 || (exit /b)
+cmake --build %BuildRoot%\7 --target install || (exit /b)
+
 :: Clean up the module cache
 rd /s /q %LocalAppData%\clang\ModuleCache
 
