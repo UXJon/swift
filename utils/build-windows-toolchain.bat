@@ -383,10 +383,35 @@ cmake ^
   -D Foundation_DIR=%BuildRoot%\4\cmake\modules ^
   -D XCTest_DIR=%BuildRoot%\5\cmake\modules ^
 
-  -G Ninja
+  -G Ninja ^
   -S %SourceRoot%\Yams || (exit /b)
 cmake --build %BuildRoot%\8 || (exit /b)
 cmake --build %BuildRoot%\8 --target install || (exit /b)
+
+:: Build swift-argument-parser
+cmake ^
+  -B %BuildRoot%\9 ^
+
+  -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
+  -D CMAKE_C_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
+  -D CMAKE_CXX_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_CXX_FLAGS="/GS- /Oy /Gw /Gy" ^
+  -D CMAKE_MT=mt ^
+  -D CMAKE_Swift_COMPILER=%BuildRoot%/1/bin/swiftc.exe ^
+  -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
+  -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
+  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
+
+  -D dispatch_DIR=%BuildRoot%\3\cmake\modules ^
+  -D Foundation_DIR=%BuildRoot%\4\cmake\modules ^
+  -D XCTest_DIR=%BuildRoot%\5\cmake\modules ^
+
+  -G Ninja ^
+  -S %SourceRoot%\swift-argument-parser | (exit /b)
+cmake --build %BuildRoot%\9 || (exit /b)
+cmake --build %BuildRoot%\9 --target install || (exit /b)
 
 :: Clean up the module cache
 rd /s /q %LocalAppData%\clang\ModuleCache
