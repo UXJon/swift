@@ -80,7 +80,7 @@ cmake --build "%BUildRoot%\zlib" --target install || (exit /b)
 cmake ^
   -B %BuildRoot%\libxml2 ^
 
-  -D BUILD_SHARED_LIBS=NO ^
+  -D BUILD_SHARED_LIBS=OFF ^
   -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
   -D CMAKE_C_COMPILER=cl ^
   -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
