@@ -409,7 +409,7 @@ cmake ^
   -D XCTest_DIR=%BuildRoot%\5\cmake\modules ^
 
   -G Ninja ^
-  -S %SourceRoot%\swift-argument-parser | (exit /b)
+  -S %SourceRoot%\swift-argument-parser || (exit /b)
 cmake --build %BuildRoot%\9 || (exit /b)
 cmake --build %BuildRoot%\9 --target install || (exit /b)
 
