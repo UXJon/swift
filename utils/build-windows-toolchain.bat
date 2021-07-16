@@ -282,6 +282,8 @@ cmake ^
 
   -G Ninja ^
   -S %SourceRoot%\swift-corelibs-foundation || (exit /b)
+:: TODO(compnerd) remove this - debugging
+ninja -C %BuildRoot%\4 -v
 cmake --build %BuildRoot%\4 || (exit /b)
 cmake --build %BuildRoot%\4 --target install || (exit /b)
 
