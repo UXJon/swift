@@ -411,7 +411,7 @@ cmake ^
   -G Ninja ^
   -S %SourceRoot%\swift-argument-parser || (exit /b)
 cmake --build %BuildRoot%\9 || (exit /b)
-cmake --build %BuildRoot%\9 --target install || (exit /b)
+cmake --build "%BuildRoot%\9" --target install || (exit /b)
 
 :: Clean up the module cache
 rd /s /q %LocalAppData%\clang\ModuleCache
