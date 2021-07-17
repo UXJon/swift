@@ -468,7 +468,7 @@ cmake ^
   -D ArgumentParser_DIR=%BuildRoot%\8\cmake\modules ^
   -D Yams_DIR=%BuildRoot%\9\cmake\modules ^
   -D SwiftDriver_DIR=%BuildRoot%\10\cmake\modules ^
-  
+
   -G Ninja ^
   -S %SourceRoot%\swift-driver || (exit /b)
 cmake --build %BuildRoot%\11 || (exit /b)
