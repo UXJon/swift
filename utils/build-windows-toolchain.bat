@@ -54,8 +54,6 @@ md %BuildRoot%\Library\sqlite-3.36.0\usr\include
 copy %BuildRoot%\sqlite\SQLite3.lib %BuildRoot%\Library\sqlite-3.36.0\usr\lib
 copy %SourceRoot%\sqlite-amalgamation-3360000\sqlite3.h %BuildRoot%\Library\sqlite-3.36.0\usr\include
 copy %SourceRoot%\sqlite-amalgamation-3360000\sqlite3ext.h %BuildRoot%\Library\sqlite-3.36.0\usr\include
-:: TODO(compnerd) remove this - DEBUGGING
-dir /s %BuildRoot%\Library\sqlite-3.36.0
 
 :: build zlib
 cmake ^
@@ -386,6 +384,8 @@ cmake ^
   -D dispatch_DIR=%BuildRoot%\3\cmake\modules ^
   -D Foundation_DIR=%BuildRoot%\4\cmake\modules ^
   -D XCTest_DIR=%BuildRoot%\5\cmake\modules ^
+
+  -D BUILD_SHARED_LIBS=YES ^
 
   -G Ninja ^
   -S %SourceRoot%\Yams || (exit /b)
