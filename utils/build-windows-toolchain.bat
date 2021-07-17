@@ -474,6 +474,30 @@ cmake ^
 cmake --build %BuildRoot%\11 || (exit /b)
 cmake --build %BuildRoot%\11 --target install || (exit /b)
 
+:: Build IndexStoreDB
+cmake ^
+  -B %BuildRoot%\12 ^
+
+  -D CMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
+  -D CMAKE_C_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_C_FLAGS="/GS- /Oy /Gw /Gy" ^
+  -D CMAKE_CXX_COMPILER=%BuildRoot%/1/bin/clang-cl.exe ^
+  -D CMAKE_CXX_FLAGS="/GS- /Oy /Gw /Gy" ^
+  -D CMAKE_MT=mt ^
+  -D CMAKE_Swift_COMPILER=%BuildRoot%/1/bin/swiftc.exe ^
+  -D CMAKE_EXE_LINKER_FLAGS="/INCREMENTAL:NO" ^
+  -D CMAKE_SHARED_LINKER_FLAGS="/INCREMENTAL:NO" ^
+
+  -D CMAKE_INSTALL_PREFIX=%BuildRoot%\Library\Developer\Platforms\Windows.platform\Developer\SDKs\Windows.sdk\usr ^
+
+  -D dispatch_DIR=%BuildRoot%\3\cmake\modules ^
+  -D Foundation_DIR=%BuildRoot%\4\cmake\modules ^
+
+  -G Ninja ^
+  -S %SourceRoot%\indexstore-db || (exit /b)
+cmake --build %BuildRoot%\12 || (exit /b)
+cmake --build %BuildRoot%\12 --target install || (exit /b)
+
 :: Clean up the module cache
 rd /s /q %LocalAppData%\clang\ModuleCache
 
