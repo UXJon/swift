@@ -365,7 +365,7 @@ cmake ^
 cmake --build %BuildRoot%\7 || (exit /b)
 cmake --build %BuildRoot%\7 --target install || (exit /b)
 
-:: Build Yams
+:: Build swift-argument-parser
 cmake ^
   -B %BuildRoot%\8 ^
 
@@ -385,14 +385,12 @@ cmake ^
   -D Foundation_DIR=%BuildRoot%\4\cmake\modules ^
   -D XCTest_DIR=%BuildRoot%\5\cmake\modules ^
 
-  -D BUILD_SHARED_LIBS=YES ^
-
   -G Ninja ^
-  -S %SourceRoot%\Yams || (exit /b)
+  -S %SourceRoot%\swift-argument-parser || (exit /b)
 cmake --build %BuildRoot%\8 || (exit /b)
 cmake --build %BuildRoot%\8 --target install || (exit /b)
 
-:: Build swift-argument-parser
+:: Build Yams
 cmake ^
   -B %BuildRoot%\9 ^
 
@@ -413,9 +411,9 @@ cmake ^
   -D XCTest_DIR=%BuildRoot%\5\cmake\modules ^
 
   -G Ninja ^
-  -S %SourceRoot%\swift-argument-parser || (exit /b)
+  -S %SourceRoot%\Yams || (exit /b)
 cmake --build %BuildRoot%\9 || (exit /b)
-cmake --build "%BuildRoot%\9" --target install || (exit /b)
+cmake --build %BuildRoot%\9 --target install || (exit /b)
 
 :: Clean up the module cache
 rd /s /q %LocalAppData%\clang\ModuleCache
