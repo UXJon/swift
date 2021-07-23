@@ -5,6 +5,14 @@
 import _Distributed
 
 @available(SwiftStdlib 5.5, *)
+struct ActorAddress: ActorIdentity {
+  let address: String
+  init(parse address : String) {
+    self.address = address
+  }
+}
+
+@available(SwiftStdlib 5.5, *)
 actor LocalActor_1 {
   let name: String = "alice"
   var mutable: String = ""
@@ -15,13 +23,6 @@ actor LocalActor_1 {
 }
 
 struct NotCodableValue { }
-
-@available(SwiftStdlib 5.5, *)
-distributed struct StructNope {} // expected-error{{distributed' modifier cannot be applied to this declaration}}
-@available(SwiftStdlib 5.5, *)
-distributed class ClassNope {} // expected-error{{'distributed' can only be applied to 'actor' definitions, and distributed actor-isolated async functions}}
-@available(SwiftStdlib 5.5, *)
-distributed enum EnumNope {} // expected-error{{distributed' modifier cannot be applied to this declaration}}
 
 @available(SwiftStdlib 5.5, *)
 distributed actor DistributedActor_1 {
@@ -112,8 +113,8 @@ func test_outside(
   distributed: DistributedActor_1
 ) async throws {
   // ==== properties
-  _ = distributed.actorAddress // ok
-  distributed.actorAddress = ActorAddress(parse: "mock://1.1.1.1:8080/#123121") // expected-error{{cannot assign to property: 'actorAddress' is immutable}}
+  _ = distributed.id // ok
+  distributed.id = AnyActorIdentity(ActorAddress(parse: "mock://1.1.1.1:8080/#123121")) // expected-error{{cannot assign to property: 'id' is immutable}})
 
   _ = local.name // ok, special case that let constants are okey
   let _: String = local.mutable // ok, special case that let constants are okey
@@ -122,7 +123,7 @@ func test_outside(
 
   // ==== special properties (@_distributedActorIndependent)
   // the distributed actor's special fields may always be referred to
-  _ = distributed.actorAddress
+  _ = distributed.id
   _ = distributed.actorTransport
 
   // ==== non-distributed functions

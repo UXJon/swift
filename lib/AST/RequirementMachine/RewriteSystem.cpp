@@ -10,11 +10,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/AST/Decl.h"
+#include "swift/AST/Types.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <vector>
-
+#include "ProtocolGraph.h"
+#include "RewriteContext.h"
 #include "RewriteSystem.h"
 
 using namespace swift;
@@ -133,17 +136,22 @@ Identifier Atom::getName() const {
   return Ptr->Name;
 }
 
-/// Get the single protocol declaration associate with a protocol atom.
+/// Get the single protocol declaration associated with a protocol atom.
 const ProtocolDecl *Atom::getProtocol() const {
   assert(getKind() == Kind::Protocol);
   return Ptr->Proto;
 }
 
-/// Get the list of protocols associated with an associated type atom.
+/// Get the list of protocols associated with a protocol or associated type
+/// atom. Note that if this is a protocol atom, the return value will have
+/// exactly one element.
 ArrayRef<const ProtocolDecl *> Atom::getProtocols() const {
-  assert(getKind() == Kind::AssociatedType);
   auto protos = Ptr->getProtocols();
-  assert(!protos.empty());
+  if (protos.empty()) {
+    assert(getKind() == Kind::Protocol);
+    return {&Ptr->Proto, 1};
+  }
+  assert(getKind() == Kind::AssociatedType);
   return protos;
 }
 
@@ -687,12 +695,20 @@ struct Term::Storage final
 
 size_t Term::size() const { return Ptr->Size; }
 
-ArrayRef<Atom>::const_iterator Term::begin() const {
+ArrayRef<Atom>::iterator Term::begin() const {
   return Ptr->getElements().begin();
 }
 
-ArrayRef<Atom>::const_iterator Term::end() const {
+ArrayRef<Atom>::iterator Term::end() const {
   return Ptr->getElements().end();
+}
+
+ArrayRef<Atom>::reverse_iterator Term::rbegin() const {
+  return Ptr->getElements().rbegin();
+}
+
+ArrayRef<Atom>::reverse_iterator Term::rend() const {
+  return Ptr->getElements().rend();
 }
 
 Atom Term::back() const {
@@ -737,6 +753,35 @@ void Term::Storage::Profile(llvm::FoldingSetNodeID &id) const {
 
   for (auto atom : getElements())
     id.AddPointer(atom.getOpaquePointer());
+}
+
+/// Returns the "domain" of this term by looking at the first atom.
+///
+/// - If the first atom is a protocol atom [P], the domain is P.
+/// - If the first atom is an associated type atom [P1&...&Pn],
+///   the domain is {P1, ..., Pn}.
+/// - If the first atom is a generic parameter atom, the domain is
+///   the empty set {}.
+/// - Anything else will assert.
+ArrayRef<const ProtocolDecl *> MutableTerm::getRootProtocols() const {
+  auto atom = *begin();
+
+  switch (atom.getKind()) {
+  case Atom::Kind::Protocol:
+  case Atom::Kind::AssociatedType:
+    return atom.getProtocols();
+
+  case Atom::Kind::GenericParam:
+    return ArrayRef<const ProtocolDecl *>();
+
+  case Atom::Kind::Name:
+  case Atom::Kind::Layout:
+  case Atom::Kind::Superclass:
+  case Atom::Kind::ConcreteType:
+    break;
+  }
+
+  llvm_unreachable("Bad root atom");
 }
 
 /// Linear order on terms.
@@ -840,48 +885,6 @@ void MutableTerm::dump(llvm::raw_ostream &out) const {
 
     atom.dump(out);
   }
-}
-
-Term RewriteContext::getTermForType(CanType paramType,
-                                    const ProtocolDecl *proto) {
-  return Term::get(getMutableTermForType(paramType, proto), *this);
-}
-
-/// Map an interface type to a term.
-///
-/// If \p proto is null, this is a term relative to a generic
-/// parameter in a top-level signature. The term is rooted in a generic
-/// parameter atom.
-///
-/// If \p proto is non-null, this is a term relative to a protocol's
-/// 'Self' type. The term is rooted in a protocol atom.
-///
-/// The bound associated types in the interface type are ignored; the
-/// resulting term consists entirely of a root atom followed by zero
-/// or more name atoms.
-MutableTerm RewriteContext::getMutableTermForType(CanType paramType,
-                                                  const ProtocolDecl *proto) {
-  assert(paramType->isTypeParameter());
-
-  // Collect zero or more nested type names in reverse order.
-  SmallVector<Atom, 3> atoms;
-  while (auto memberType = dyn_cast<DependentMemberType>(paramType)) {
-    atoms.push_back(Atom::forName(memberType->getName(), *this));
-    paramType = memberType.getBase();
-  }
-
-  // Add the root atom at the end.
-  if (proto) {
-    assert(proto->getSelfInterfaceType()->isEqual(paramType));
-    atoms.push_back(Atom::forProtocol(proto, *this));
-  } else {
-    atoms.push_back(Atom::forGenericParam(
-        cast<GenericTypeParamType>(paramType), *this));
-  }
-
-  std::reverse(atoms.begin(), atoms.end());
-
-  return MutableTerm(atoms);
 }
 
 void Rule::dump(llvm::raw_ostream &out) const {
@@ -1033,7 +1036,8 @@ void RewriteSystem::simplifyRightHandSides() {
 
 #define ASSERT_RULE(expr) \
   if (!(expr)) { \
-    llvm::errs() << "&&& Malformed rewrite rule: " << rule << "\n\n"; \
+    llvm::errs() << "&&& Malformed rewrite rule: " << rule << "\n"; \
+    llvm::errs() << "&&& " << #expr << "\n\n"; \
     dump(llvm::errs()); \
     assert(expr); \
   }
@@ -1078,6 +1082,11 @@ void RewriteSystem::simplifyRightHandSides() {
         ASSERT_RULE(atom.getKind() != Atom::Kind::Protocol);
       }
     }
+
+    auto lhsDomain = lhs.getRootProtocols();
+    auto rhsDomain = rhs.getRootProtocols();
+
+    ASSERT_RULE(lhsDomain == rhsDomain);
   }
 
 #undef ASSERT_RULE

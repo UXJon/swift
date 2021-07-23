@@ -1057,7 +1057,8 @@ public:
   template <typename StorageType>
   void emitDebugVariableDeclaration(StorageType Storage, DebugTypeInfo Ty,
                                     SILType SILTy, const SILDebugScope *DS,
-                                    VarDecl *VarDecl, SILDebugVariable VarInfo,
+                                    SILLocation VarLoc,
+                                    SILDebugVariable VarInfo,
                                     IndirectionKind Indirection) {
     // TODO: fix demangling for C++ types (SR-13223).
     if (swift::TypeBase *ty = SILTy.getASTType().getPointer()) {
@@ -1073,10 +1074,10 @@ public:
     assert(IGM.DebugInfo && "debug info not enabled");
     if (VarInfo.ArgNo) {
       PrologueLocation AutoRestore(IGM.DebugInfo.get(), Builder);
-      IGM.DebugInfo->emitVariableDeclaration(Builder, Storage, Ty, DS, VarDecl,
+      IGM.DebugInfo->emitVariableDeclaration(Builder, Storage, Ty, DS, VarLoc,
                                              VarInfo, Indirection);
     } else
-      IGM.DebugInfo->emitVariableDeclaration(Builder, Storage, Ty, DS, VarDecl,
+      IGM.DebugInfo->emitVariableDeclaration(Builder, Storage, Ty, DS, VarLoc,
                                              VarInfo, Indirection);
   }
 
@@ -4606,7 +4607,7 @@ void IRGenSILFunction::emitErrorResultVar(CanSILFunctionType FnTy,
       ErrorResultSlot->getType(), IGM.getPointerSize(),
       IGM.getPointerAlignment());
   IGM.DebugInfo->emitVariableDeclaration(Builder, Storage, DbgTy,
-                                         getDebugScope(), nullptr, *Var,
+                                         getDebugScope(), {}, *Var,
                                          IndirectValue, ArtificialValue);
 }
 
@@ -4767,7 +4768,7 @@ void IRGenSILFunction::visitDebugValueInst(DebugValueInst *i) {
     InCoroContext(*CurSILFn, *i) ? CoroDirectValue : DirectValue;
 
   emitDebugVariableDeclaration(Copy, DbgTy, SILTy, i->getDebugScope(),
-                               i->getDecl(), *VarInfo, Indirection);
+                               i->getLoc(), *VarInfo, Indirection);
 }
 
 void IRGenSILFunction::visitDebugValueAddrInst(DebugValueAddrInst *i) {
@@ -4815,7 +4816,7 @@ void IRGenSILFunction::visitDebugValueAddrInst(DebugValueAddrInst *i) {
   // intrinsic.
   emitDebugVariableDeclaration(
       emitShadowCopyIfNeeded(Addr, i->getDebugScope(), *VarInfo, IsAnonymous),
-      DbgTy, SILType(), i->getDebugScope(), Decl, *VarInfo, Indirection);
+      DbgTy, SILType(), i->getDebugScope(), i->getLoc(), *VarInfo, Indirection);
 }
 
 void IRGenSILFunction::visitFixLifetimeInst(swift::FixLifetimeInst *i) {
@@ -5162,7 +5163,8 @@ void IRGenSILFunction::emitDebugInfoForAllocStack(AllocStackInst *i,
 
   bindArchetypes(DbgTy.getType());
   if (IGM.DebugInfo)
-    emitDebugVariableDeclaration(addr, DbgTy, SILTy, DS, Decl, *VarInfo,
+    emitDebugVariableDeclaration(addr, DbgTy, SILTy, DS,
+                                 i->getLoc(), *VarInfo,
                                  Indirection);
 }
 
@@ -5376,7 +5378,7 @@ void IRGenSILFunction::visitAllocBoxInst(swift::AllocBoxInst *i) {
     return;
 
   IGM.DebugInfo->emitVariableDeclaration(
-      Builder, Storage, DbgTy, i->getDebugScope(), Decl, *VarInfo,
+      Builder, Storage, DbgTy, i->getDebugScope(), i->getLoc(), *VarInfo,
       InCoroContext(*CurSILFn, *i) ? CoroIndirectValue : IndirectValue);
 }
 

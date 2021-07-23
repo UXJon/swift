@@ -202,9 +202,9 @@ Atom RewriteSystem::mergeAssociatedTypes(Atom lhs, Atom rhs) const {
   }
 
   // The two input sets are minimal already, so the merged set
-  // should have at least as many elements as each input set.
-  assert(minimalProtos.size() >= protos.size());
-  assert(minimalProtos.size() >= otherProtos.size());
+  // should have at least as many elements as the smallest
+  // input set.
+  assert(minimalProtos.size() >= std::min(protos.size(), otherProtos.size()));
 
   // The merged set cannot contain more elements than the union
   // of the two sets.
@@ -312,6 +312,10 @@ void RewriteSystem::processMergedAssociatedTypes() {
     // Add the rule X.[P1:T] => X.[P1&P2:T].
     addRule(rhs, mergedTerm);
 
+    // Collect new rules here so that we're not adding rules while iterating
+    // over the rules list.
+    SmallVector<std::pair<MutableTerm, MutableTerm>, 2> inducedRules;
+
     // Look for conformance requirements on [P1:T] and [P2:T].
     for (const auto &otherRule : Rules) {
       const auto &otherLHS = otherRule.getLHS();
@@ -334,7 +338,7 @@ void RewriteSystem::processMergedAssociatedTypes() {
           // merged type [P1&P2:T] must conform to Q as well. Add a new rule
           // of the form:
           //
-          //   [P1&P2].[Q] => [P1&P2]
+          //   [P1&P2:T].[Q] => [P1&P2:T]
           //
           MutableTerm newLHS;
           newLHS.add(mergedAtom);
@@ -343,10 +347,14 @@ void RewriteSystem::processMergedAssociatedTypes() {
           MutableTerm newRHS;
           newRHS.add(mergedAtom);
 
-          addRule(newLHS, newRHS);
+          inducedRules.emplace_back(newLHS, newRHS);
         }
       }
     }
+
+    // Now add the new rules.
+    for (const auto &pair : inducedRules)
+      addRule(pair.first, pair.second);
   }
 
   MergedAssociatedTypes.clear();
@@ -446,7 +454,7 @@ RewriteSystem::computeConfluentCompletion(unsigned maxIterations,
   // moving on to overlaps between rules introduced by completion.
   while (!Worklist.empty()) {
     // Check if we've already done too much work.
-    if (steps >= maxIterations)
+    if (Rules.size() > maxIterations)
       return std::make_pair(CompletionResult::MaxIterations, steps);
 
     auto next = Worklist.front();

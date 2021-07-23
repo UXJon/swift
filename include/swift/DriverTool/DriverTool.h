@@ -1,4 +1,4 @@
-//===--- FoundationShimSupport.h - Helper macros for Foundation overlay ---===//
+//===--- DriverTool.h - Driver control ----------------------*- C++ -*-===//
 //
 // This source file is part of the Swift.org open source project
 //
@@ -9,25 +9,19 @@
 // See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
+//
+// This file provides a high-level API for interacting with the basic
+// driver operation.
+//
+//===----------------------------------------------------------------------===//
 
-#import <Foundation/Foundation.h>
+#ifndef SWIFT_DRIVERTOOL_H
+#define SWIFT_DRIVERTOOL_H
 
-#ifndef NS_NON_BRIDGED
-#define NS_NON_BRIDGED(type) NSObject *
-#endif
+#include "swift/Basic/LLVM.h"
 
-#ifndef NS_BEGIN_DECLS
-
-#define NS_BEGIN_DECLS \
-    __BEGIN_DECLS \
-    NS_ASSUME_NONNULL_BEGIN
-
-#endif
-
-#ifndef NS_END_DECLS
-
-#define NS_END_DECLS \
-    NS_ASSUME_NONNULL_END \
-    __END_DECLS
+namespace swift {
+  int mainEntry(int argc_, const char **argv_);
+} // namespace swift
 
 #endif

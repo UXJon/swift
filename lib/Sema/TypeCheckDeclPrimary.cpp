@@ -35,7 +35,6 @@
 #include "swift/AST/Expr.h"
 #include "swift/AST/ForeignErrorConvention.h"
 #include "swift/AST/GenericEnvironment.h"
-#include "swift/AST/GenericSignatureBuilder.h"
 #include "swift/AST/Initializer.h"
 #include "swift/AST/NameLookup.h"
 #include "swift/AST/NameLookupRequests.h"
@@ -73,7 +72,7 @@ using namespace swift;
 static void checkInheritanceClause(
     llvm::PointerUnion<const TypeDecl *, const ExtensionDecl *> declUnion) {
   const DeclContext *DC;
-  ArrayRef<TypeLoc> inheritedClause;
+  ArrayRef<InheritedEntry> inheritedClause;
   const ExtensionDecl *ext = nullptr;
   const TypeDecl *typeDecl = nullptr;
   const Decl *decl;
@@ -627,7 +626,9 @@ CheckRedeclarationRequest::evaluate(Evaluator &eval, ValueDecl *current) const {
     // Thwart attempts to override the same declaration more than once.
     const auto *currentOverride = current->getOverriddenDecl();
     const auto *otherOverride = other->getOverriddenDecl();
-    if (currentOverride && currentOverride == otherOverride) {
+    const auto *otherInit = dyn_cast<ConstructorDecl>(other);
+    if (currentOverride && currentOverride == otherOverride &&
+        !(otherInit && otherInit->isImplicit())) {
       current->diagnose(diag::multiple_override, current->getName());
       other->diagnose(diag::multiple_override_prev, other->getName());
       current->setInvalid();
@@ -2107,6 +2108,14 @@ public:
       }
     }
 
+    // Reject "class" methods on actors.
+    if (SD->getStaticSpelling() == StaticSpellingKind::KeywordClass &&
+        SD->getDeclContext()->getSelfClassDecl() &&
+        SD->getDeclContext()->getSelfClassDecl()->isActor()) {
+      SD->diagnose(diag::class_subscript_not_in_class, false)
+          .fixItReplace(SD->getStaticLoc(), "static");
+    }
+
     // Now check all the accessors.
     SD->visitEmittedAccessors([&](AccessorDecl *accessor) {
       visit(accessor);
@@ -2745,6 +2754,14 @@ public:
           }
         }
       }
+    }
+
+    // Reject "class" methods on actors.
+    if (StaticSpelling == StaticSpellingKind::KeywordClass &&
+        FD->getDeclContext()->getSelfClassDecl() &&
+        FD->getDeclContext()->getSelfClassDecl()->isActor()) {
+      FD->diagnose(diag::class_func_not_in_class, false)
+          .fixItReplace(FD->getStaticLoc(), "static");
     }
 
     // Member functions need some special validation logic.

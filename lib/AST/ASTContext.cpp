@@ -53,6 +53,7 @@
 #include "swift/Basic/StringExtras.h"
 #include "swift/Strings.h"
 #include "swift/Subsystems.h"
+#include "swift/SymbolGraphGen/SymbolGraphOptions.h"
 #include "swift/Syntax/References.h"
 #include "swift/Syntax/SyntaxArena.h"
 #include "clang/AST/Type.h"
@@ -65,6 +66,8 @@
 #include "llvm/Support/Compiler.h"
 #include <algorithm>
 #include <memory>
+
+#include "RequirementMachine/RewriteContext.h"
 
 using namespace swift;
 
@@ -530,6 +533,9 @@ struct ASTContext::Implementation {
   /// The scratch context used to allocate intrinsic data on behalf of \c swift::IntrinsicInfo
   std::unique_ptr<llvm::LLVMContext> IntrinsicScratchContext;
 #endif
+
+  /// Memory allocation arena for the term rewriting system.
+  std::unique_ptr<rewriting::RewriteContext> TheRewriteContext;
 };
 
 ASTContext::Implementation::Implementation()
@@ -579,6 +585,7 @@ ASTContext *ASTContext::get(LangOptions &langOpts,
                             TypeCheckerOptions &typeckOpts,
                             SearchPathOptions &SearchPathOpts,
                             ClangImporterOptions &ClangImporterOpts,
+                            symbolgraphgen::SymbolGraphOptions &SymbolGraphOpts,
                             SourceManager &SourceMgr,
                             DiagnosticEngine &Diags) {
   // If more than two data structures are concatentated, then the aggregate
@@ -593,17 +600,19 @@ ASTContext *ASTContext::get(LangOptions &langOpts,
   new (impl) Implementation();
   return new (mem)
       ASTContext(langOpts, typeckOpts, SearchPathOpts, ClangImporterOpts,
-                 SourceMgr, Diags);
+                 SymbolGraphOpts, SourceMgr, Diags);
 }
 
 ASTContext::ASTContext(LangOptions &langOpts, TypeCheckerOptions &typeckOpts,
                        SearchPathOptions &SearchPathOpts,
                        ClangImporterOptions &ClangImporterOpts,
+                       symbolgraphgen::SymbolGraphOptions &SymbolGraphOpts,
                        SourceManager &SourceMgr, DiagnosticEngine &Diags)
   : LangOpts(langOpts),
     TypeCheckerOpts(typeckOpts),
     SearchPathOpts(SearchPathOpts),
     ClangImporterOpts(ClangImporterOpts),
+    SymbolGraphOpts(SymbolGraphOpts),
     SourceMgr(SourceMgr), Diags(Diags),
     evaluator(Diags, langOpts),
     TheBuiltinModule(createBuiltinModule(*this)),
@@ -1767,8 +1776,10 @@ static AllocationArena getArena(GenericSignature genericSig) {
   if (!genericSig)
     return AllocationArena::Permanent;
 
-  if (genericSig->hasTypeVariable())
+  if (genericSig->hasTypeVariable()) {
+    assert(false && "What's going on");
     return AllocationArena::ConstraintSolver;
+  }
 
   return AllocationArena::Permanent;
 }
@@ -1776,6 +1787,9 @@ static AllocationArena getArena(GenericSignature genericSig) {
 void ASTContext::registerGenericSignatureBuilder(
                                        GenericSignature sig,
                                        GenericSignatureBuilder &&builder) {
+  if (LangOpts.EnableRequirementMachine == RequirementMachineMode::Enabled)
+    return;
+
   auto canSig = sig.getCanonicalSignature();
   auto arena = getArena(sig);
   auto &genericSignatureBuilders =
@@ -1793,9 +1807,11 @@ void ASTContext::registerGenericSignatureBuilder(
 
 GenericSignatureBuilder *ASTContext::getOrCreateGenericSignatureBuilder(
                                                       CanGenericSignature sig) {
-  if (LangOpts.EnableRequirementMachine) {
-    (void) getOrCreateRequirementMachine(sig);
-  }
+  // We should only create GenericSignatureBuilders if the requirement machine
+  // mode is ::Disabled or ::Verify.
+  assert(LangOpts.EnableRequirementMachine != RequirementMachineMode::Enabled &&
+         "Shouldn't create GenericSignatureBuilder when RequirementMachine "
+         "is enabled");
 
   // Check whether we already have a generic signature builder for this
   // signature and module.
@@ -1879,6 +1895,12 @@ GenericSignatureBuilder *ASTContext::getOrCreateGenericSignatureBuilder(
 
 RequirementMachine *ASTContext::getOrCreateRequirementMachine(
     CanGenericSignature sig) {
+  assert(!sig->hasTypeVariable());
+
+  auto &rewriteCtx = getImpl().TheRewriteContext;
+  if (!rewriteCtx)
+    rewriteCtx.reset(new rewriting::RewriteContext(*this));
+
   // Check whether we already have a requirement machine for this
   // signature.
   auto arena = getArena(sig);
@@ -1896,12 +1918,12 @@ RequirementMachine *ASTContext::getOrCreateRequirementMachine(
     return machine;
   }
 
-  auto *machine = new RequirementMachine(*this);
+  auto *machine = new RequirementMachine(*rewriteCtx);
 
   // Store this requirement machine before adding the signature,
   // to catch re-entrant construction via addGenericSignature()
   // below.
-  machinePtr = std::unique_ptr<RequirementMachine>(machine);
+  machinePtr.reset(machine);
 
   machine->addGenericSignature(sig);
 
@@ -2184,7 +2206,8 @@ ASTContext::getConformance(Type conformingType,
                            ProtocolDecl *protocol,
                            SourceLoc loc,
                            DeclContext *dc,
-                           ProtocolConformanceState state) {
+                           ProtocolConformanceState state,
+                           bool isUnchecked) {
   assert(dc->isTypeContext());
 
   llvm::FoldingSetNodeID id;
@@ -2200,7 +2223,8 @@ ASTContext::getConformance(Type conformingType,
   // Build a new normal protocol conformance.
   auto result
     = new (*this, AllocationArena::Permanent)
-      NormalProtocolConformance(conformingType, protocol, loc, dc, state);
+        NormalProtocolConformance(
+          conformingType, protocol, loc, dc, state,isUnchecked);
   normalConformances.InsertNode(result, insertPos);
 
   return result;
@@ -4159,8 +4183,7 @@ OpaqueTypeArchetypeType::get(OpaqueTypeDecl *Decl,
   
   // Create a generic environment and bind the opaque archetype to the
   // opaque interface type from the decl's signature.
-  auto *builder = signature->getGenericSignatureBuilder();
-  auto *env = GenericEnvironment::getIncomplete(signature, builder);
+  auto *env = GenericEnvironment::getIncomplete(signature);
   env->addMapping(GenericParamKey(opaqueInterfaceTy), newOpaque);
   newOpaque->Environment = env;
   
@@ -4237,8 +4260,7 @@ GenericEnvironment *OpenedArchetypeType::getGenericEnvironment() const {
   auto &ctx = thisType->getASTContext();
   // Create a generic environment to represent the opened type.
   auto signature = ctx.getOpenedArchetypeSignature(Opened);
-  auto *builder = signature->getGenericSignatureBuilder();
-  auto *env = GenericEnvironment::getIncomplete(signature, builder);
+  auto *env = GenericEnvironment::getIncomplete(signature);
   env->addMapping(signature->getGenericParams()[0], thisType);
   Environment = env;
   
@@ -4393,15 +4415,14 @@ GenericSignature::get(TypeArrayView<GenericTypeParamType> params,
 }
 
 GenericEnvironment *GenericEnvironment::getIncomplete(
-                                             GenericSignature signature,
-                                             GenericSignatureBuilder *builder) {
+                                             GenericSignature signature) {
   auto &ctx = signature->getASTContext();
 
   // Allocate and construct the new environment.
   unsigned numGenericParams = signature->getGenericParams().size();
   size_t bytes = totalSizeToAlloc<Type>(numGenericParams);
   void *mem = ctx.Allocate(bytes, alignof(GenericEnvironment));
-  return new (mem) GenericEnvironment(signature, builder);
+  return new (mem) GenericEnvironment(signature);
 }
 
 void DeclName::CompoundDeclName::Profile(llvm::FoldingSetNodeID &id,

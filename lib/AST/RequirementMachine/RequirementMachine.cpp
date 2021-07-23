@@ -1,4 +1,4 @@
-//===--- RequirementMachine.cpp - Generics with term rewriting --*- C++ -*-===//
+//===--- RequirementMachine.cpp - Generics with term rewriting ------------===//
 //
 // This source file is part of the Swift.org open source project
 //
@@ -14,15 +14,16 @@
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/Decl.h"
 #include "swift/AST/GenericSignature.h"
+#include "swift/AST/Module.h"
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/AST/Requirement.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/TinyPtrVector.h"
 #include <vector>
 
 #include "EquivalenceClassMap.h"
 #include "ProtocolGraph.h"
+#include "RewriteContext.h"
 #include "RewriteSystem.h"
+#include "RequirementMachineImpl.h"
 
 using namespace swift;
 using namespace rewriting;
@@ -86,21 +87,21 @@ void RewriteSystemBuilder::addGenericSignature(CanGenericSignature sig) {
   // Collect all protocols transitively referenced from the generic signature's
   // requirements.
   Protocols.visitRequirements(sig->getRequirements());
-  Protocols.computeTransitiveClosure();
-  Protocols.computeLinearOrder();
-  Protocols.computeInheritedProtocols();
-  Protocols.computeInheritedAssociatedTypes();
+  Protocols.compute();
 
   // Add rewrite rules for each protocol.
-  for (auto *proto : Protocols.Protocols) {
+  for (auto *proto : Protocols.getProtocols()) {
     if (Debug) {
       llvm::dbgs() << "protocol " << proto->getName() << " {\n";
     }
 
     const auto &info = Protocols.getProtocolInfo(proto);
 
-    for (auto *type : info.AssociatedTypes)
-      addAssociatedType(type, proto);
+    for (auto *assocType : info.AssociatedTypes)
+      addAssociatedType(assocType, proto);
+
+    for (auto *assocType : info.InheritedAssociatedTypes)
+      addAssociatedType(assocType, proto);
 
     for (auto req : info.Requirements)
       addRequirement(req.getCanonical(), proto);
@@ -223,21 +224,79 @@ void RewriteSystemBuilder::addRequirement(const Requirement &req,
   Rules.emplace_back(subjectTerm, constraintTerm);
 }
 
+void RequirementMachine::Implementation::verify(const MutableTerm &term) {
+#ifndef NDEBUG
+  MutableTerm erased;
 
-/// We use the PIMPL pattern to avoid creeping header dependencies.
-struct RequirementMachine::Implementation {
-  RewriteContext Context;
-  RewriteSystem System;
-  EquivalenceClassMap Map;
-  bool Complete = false;
+  // First, "erase" resolved associated types from the term, and try
+  // to simplify it again.
+  for (auto atom : term) {
+    if (erased.empty()) {
+      switch (atom.getKind()) {
+      case Atom::Kind::Protocol:
+      case Atom::Kind::GenericParam:
+        erased.add(atom);
+        continue;
 
-  explicit Implementation(ASTContext &ctx)
-      : Context(ctx),
-        System(Context),
-        Map(Context, System.getProtocols()) {}
-};
+      case Atom::Kind::AssociatedType:
+        erased.add(Atom::forProtocol(atom.getProtocols()[0], Context));
+        break;
 
-RequirementMachine::RequirementMachine(ASTContext &ctx) : Context(ctx) {
+      case Atom::Kind::Name:
+      case Atom::Kind::Layout:
+      case Atom::Kind::Superclass:
+      case Atom::Kind::ConcreteType:
+        llvm::errs() << "Bad initial atom in " << term << "\n";
+        abort();
+        break;
+      }
+    }
+
+    switch (atom.getKind()) {
+    case Atom::Kind::Name:
+      assert(!erased.empty());
+      erased.add(atom);
+      break;
+
+    case Atom::Kind::AssociatedType:
+      erased.add(Atom::forName(atom.getName(), Context));
+      break;
+
+    case Atom::Kind::Protocol:
+    case Atom::Kind::GenericParam:
+    case Atom::Kind::Layout:
+    case Atom::Kind::Superclass:
+    case Atom::Kind::ConcreteType:
+      llvm::errs() << "Bad interior atom " << atom << " in " << term << "\n";
+      abort();
+      break;
+    }
+  }
+
+  MutableTerm simplified = erased;
+  System.simplify(simplified);
+
+  // We should end up with the same term.
+  if (simplified != term) {
+    llvm::errs() << "Term verification failed\n";
+    llvm::errs() << "Initial term:    " << term << "\n";
+    llvm::errs() << "Erased term:     " << erased << "\n";
+    llvm::errs() << "Simplified term: " << simplified << "\n";
+    llvm::errs() << "\n";
+    dump(llvm::errs());
+    abort();
+  }
+#endif
+}
+
+void RequirementMachine::Implementation::dump(llvm::raw_ostream &out) {
+  out << "Requirement machine for " << Sig << "\n";
+  System.dump(out);
+  Map.dump(out);
+}
+
+RequirementMachine::RequirementMachine(RewriteContext &ctx)
+    : Context(ctx.getASTContext()) {
   Impl = new Implementation(ctx);
 }
 
@@ -246,6 +305,8 @@ RequirementMachine::~RequirementMachine() {
 }
 
 void RequirementMachine::addGenericSignature(CanGenericSignature sig) {
+  Impl->Sig = sig;
+
   PrettyStackTraceGenericSignature debugStack("building rewrite system for", sig);
 
   auto *Stats = Context.Stats;
@@ -270,7 +331,7 @@ void RequirementMachine::addGenericSignature(CanGenericSignature sig) {
   Impl->System.initialize(std::move(builder.Rules),
                           std::move(builder.Protocols));
 
-  computeCompletion(sig);
+  computeCompletion();
 
   if (Context.LangOpts.DebugRequirementMachine) {
     llvm::dbgs() << "}\n";
@@ -279,17 +340,12 @@ void RequirementMachine::addGenericSignature(CanGenericSignature sig) {
 
 /// Attempt to obtain a confluent rewrite system using the completion
 /// procedure.
-void RequirementMachine::computeCompletion(CanGenericSignature sig) {
-  unsigned remainingSteps = Context.LangOpts.RequirementMachineStepLimit;
-  bool keepGoing = true;
-
-  while (keepGoing) {
+void RequirementMachine::computeCompletion() {
+  while (true) {
     // First, run the Knuth-Bendix algorithm to resolve overlapping rules.
     auto result = Impl->System.computeConfluentCompletion(
-        remainingSteps, Context.LangOpts.RequirementMachineDepthLimit);
-
-    assert(remainingSteps >= result.second);
-    remainingSteps -= result.second;
+        Context.LangOpts.RequirementMachineStepLimit,
+        Context.LangOpts.RequirementMachineDepthLimit);
 
     if (Context.Stats) {
       Context.Stats->getFrontendCounters()
@@ -297,22 +353,26 @@ void RequirementMachine::computeCompletion(CanGenericSignature sig) {
     }
 
     // Check for failure.
-    switch (result.first) {
-    case RewriteSystem::CompletionResult::Success:
-      break;
+    auto checkCompletionResult = [&]() {
+      switch (result.first) {
+      case RewriteSystem::CompletionResult::Success:
+        break;
 
-    case RewriteSystem::CompletionResult::MaxIterations:
-      llvm::errs() << "Generic signature " << sig
-                   << " exceeds maximum completion step count\n";
-      Impl->System.dump(llvm::errs());
-      abort();
+      case RewriteSystem::CompletionResult::MaxIterations:
+        llvm::errs() << "Generic signature " << Impl->Sig
+                     << " exceeds maximum completion step count\n";
+        Impl->System.dump(llvm::errs());
+        abort();
 
-    case RewriteSystem::CompletionResult::MaxDepth:
-      llvm::errs() << "Generic signature " << sig
-                   << " exceeds maximum completion depth\n";
-      Impl->System.dump(llvm::errs());
-      abort();
-    }
+      case RewriteSystem::CompletionResult::MaxDepth:
+        llvm::errs() << "Generic signature " << Impl->Sig
+                     << " exceeds maximum completion depth\n";
+        Impl->System.dump(llvm::errs());
+        abort();
+      }
+    };
+
+    checkCompletionResult();
 
     // Simplify right hand sides in preparation for building the
     // equivalence class map.
@@ -321,7 +381,22 @@ void RequirementMachine::computeCompletion(CanGenericSignature sig) {
     // Build the equivalence class map, which performs concrete term
     // unification; if this added any new rules, run the completion
     // procedure again.
-    keepGoing = Impl->System.buildEquivalenceClassMap(Impl->Map);
+    result = Impl->System.buildEquivalenceClassMap(
+        Impl->Map,
+        Context.LangOpts.RequirementMachineStepLimit,
+        Context.LangOpts.RequirementMachineDepthLimit);
+
+    if (Context.Stats) {
+      Context.Stats->getFrontendCounters()
+        .NumRequirementMachineUnifiedConcreteTerms += result.second;
+    }
+
+    checkCompletionResult();
+
+    // If buildEquivalenceClassMap() added new rules, we run another
+    // round of Knuth-Bendix, and build the equivalence class map again.
+    if (result.second == 0)
+      break;
   }
 
   if (Context.LangOpts.DebugRequirementMachine) {
@@ -337,103 +412,5 @@ bool RequirementMachine::isComplete() const {
 }
 
 void RequirementMachine::dump(llvm::raw_ostream &out) const {
-  Impl->System.dump(out);
-  Impl->Map.dump(out);
-}
-
-bool RequirementMachine::requiresClass(Type depType) const {
-  auto term = Impl->Context.getMutableTermForType(depType->getCanonicalType(),
-                                                  /*proto=*/nullptr);
-  Impl->System.simplify(term);
-
-  auto *equivClass = Impl->Map.lookUpEquivalenceClass(term);
-  if (!equivClass)
-    return false;
-
-  if (equivClass->isConcreteType())
-    return false;
-
-  auto layout = equivClass->getLayoutConstraint();
-  return (layout && layout->isClass());
-}
-
-LayoutConstraint RequirementMachine::getLayoutConstraint(Type depType) const {
-  auto term = Impl->Context.getMutableTermForType(depType->getCanonicalType(),
-                                                  /*proto=*/nullptr);
-  Impl->System.simplify(term);
-
-  auto *equivClass = Impl->Map.lookUpEquivalenceClass(term);
-  if (!equivClass)
-    return LayoutConstraint();
-
-  return equivClass->getLayoutConstraint();
-}
-
-bool RequirementMachine::requiresProtocol(Type depType,
-                                          const ProtocolDecl *proto) const {
-  auto term = Impl->Context.getMutableTermForType(depType->getCanonicalType(),
-                                                  /*proto=*/nullptr);
-  Impl->System.simplify(term);
-
-  auto *equivClass = Impl->Map.lookUpEquivalenceClass(term);
-  if (!equivClass)
-    return false;
-
-  if (equivClass->isConcreteType())
-    return false;
-
-  for (auto *otherProto : equivClass->getConformsTo()) {
-    if (otherProto == proto)
-      return true;
-  }
-
-  return false;
-}
-
-GenericSignature::RequiredProtocols
-RequirementMachine::getRequiredProtocols(Type depType) const {
-  auto term = Impl->Context.getMutableTermForType(depType->getCanonicalType(),
-                                                  /*proto=*/nullptr);
-  Impl->System.simplify(term);
-
-  auto *equivClass = Impl->Map.lookUpEquivalenceClass(term);
-  if (!equivClass)
-    return { };
-
-  if (equivClass->isConcreteType())
-    return { };
-
-  GenericSignature::RequiredProtocols result;
-  for (auto *otherProto : equivClass->getConformsTo()) {
-    result.push_back(const_cast<ProtocolDecl *>(otherProto));
-  }
-
-  ProtocolType::canonicalizeProtocols(result);
-
-  return result;
-}
-
-bool RequirementMachine::isConcreteType(Type depType) const {
-  auto term = Impl->Context.getMutableTermForType(depType->getCanonicalType(),
-                                                  /*proto=*/nullptr);
-  Impl->System.simplify(term);
-
-  auto *equivClass = Impl->Map.lookUpEquivalenceClass(term);
-  if (!equivClass)
-    return false;
-
-  return equivClass->isConcreteType();
-}
-
-bool RequirementMachine::areSameTypeParameterInContext(Type depType1,
-                                                       Type depType2) const {
-  auto term1 = Impl->Context.getMutableTermForType(depType1->getCanonicalType(),
-                                                   /*proto=*/nullptr);
-  Impl->System.simplify(term1);
-
-  auto term2 = Impl->Context.getMutableTermForType(depType2->getCanonicalType(),
-                                                   /*proto=*/nullptr);
-  Impl->System.simplify(term2);
-
-  return (term1 == term2);
+  Impl->dump(out);
 }
