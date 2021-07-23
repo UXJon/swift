@@ -630,7 +630,7 @@ AbstractionPattern::getObjCMethodAsyncCompletionHandlerType(
     if (auto origSig = getGenericSignature()) {
       patternSig = origSig;
     } else if (auto genFnTy = dyn_cast<GenericFunctionType>(getType())) {
-      patternSig = genFnTy->getGenericSignature()->getCanonicalSignature();
+      patternSig = genFnTy->getGenericSignature().getCanonicalSignature();
     }
     
     return AbstractionPattern(patternSig,
@@ -1135,13 +1135,12 @@ AbstractionPattern
 AbstractionPattern::unsafeGetSubstFieldType(ValueDecl *member,
                                             CanType origMemberInterfaceType)
 const {
+  assert(origMemberInterfaceType);
   if (isTypeParameterOrOpaqueArchetype()) {
     // Fall back to the generic abstraction pattern for the member.
     auto sig = member->getDeclContext()->getGenericSignatureOfContext();
-    CanType memberTy = origMemberInterfaceType
-      ? origMemberInterfaceType
-      : member->getInterfaceType()->getCanonicalType(sig);
-    return AbstractionPattern(sig.getCanonicalSignature(), memberTy);
+    return AbstractionPattern(sig.getCanonicalSignature(),
+                              origMemberInterfaceType);
   }
 
   switch (getKind()) {

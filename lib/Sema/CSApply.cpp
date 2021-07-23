@@ -547,7 +547,7 @@ namespace {
       }
 
       auto sig = gft->getGenericSignature();
-      auto *env = sig->getGenericEnvironment();
+      auto *env = sig.getGenericEnvironment();
 
       witnessType = FunctionType::get(gft->getParams(),
                                       gft->getResult(),
@@ -1067,7 +1067,7 @@ namespace {
         outerParamTypes.push_back(AnyFunctionType::Param(outerParamType,
                                                          Identifier(),
                                                          paramInfo[i].getParameterFlags()));
-        outerParam->setInterfaceType(outerParamType);
+        outerParam->setInterfaceType(outerParamType->mapTypeOutOfContext());
 
         if (fnDecl.getAbstractFunctionDecl())
           argLabels.push_back(innerParam->getArgumentName());
@@ -2450,7 +2450,7 @@ namespace {
       auto subMap = SubstitutionMap::get(
           genericSig,
           [&](SubstitutableType *type) -> Type {
-            assert(type->isEqual(genericSig->getGenericParams()[0]));
+            assert(type->isEqual(genericSig.getGenericParams()[0]));
             return valueType;
           },
           [&](CanType origType, Type replacementType,
@@ -8151,11 +8151,12 @@ namespace {
 
         if (auto *projectionVar = param->getPropertyWrapperProjectionVar()) {
           projectionVar->setInterfaceType(
-              solution.simplifyType(solution.getType(projectionVar)));
+              solution.simplifyType(solution.getType(projectionVar))->mapTypeOutOfContext());
         }
 
         auto *wrappedValueVar = param->getPropertyWrapperWrappedValueVar();
-        auto wrappedValueType = solution.simplifyType(solution.getType(wrappedValueVar));
+        auto wrappedValueType =
+            solution.simplifyType(solution.getType(wrappedValueVar))->mapTypeOutOfContext();
         wrappedValueVar->setInterfaceType(wrappedValueType->getWithoutSpecifierType());
 
         if (param->hasImplicitPropertyWrapper()) {
@@ -8900,8 +8901,9 @@ bool Solution::hasType(ASTNode node) const {
 }
 
 bool Solution::hasType(const KeyPathExpr *KP, unsigned ComponentIndex) const {
-  auto &cs = getConstraintSystem();
-  return cs.hasType(KP, ComponentIndex);
+  assert(KP && "Expected non-null key path parameter!");
+  return keyPathComponentTypes.find(std::make_pair(KP, ComponentIndex))
+            != keyPathComponentTypes.end();
 }
 
 Type Solution::getType(ASTNode node) const {
@@ -8911,6 +8913,11 @@ Type Solution::getType(ASTNode node) const {
 
   auto &cs = getConstraintSystem();
   return cs.getType(node);
+}
+
+Type Solution::getType(const KeyPathExpr *KP, unsigned I) const {
+  assert(hasType(KP, I) && "Expected type to have been set!");
+  return keyPathComponentTypes.find(std::make_pair(KP, I))->second;
 }
 
 Type Solution::getResolvedType(ASTNode node) const {

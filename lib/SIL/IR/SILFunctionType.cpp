@@ -1299,7 +1299,7 @@ public:
     
     // Extract structural substitutions.
     if (origContextType->hasTypeParameter()) {
-      origContextType = origSig->getGenericEnvironment()
+      origContextType = origSig.getGenericEnvironment()
         ->mapTypeIntoContext(origContextType)
         ->getCanonicalType();
     }
@@ -1766,7 +1766,7 @@ static bool isPseudogeneric(SILDeclRef c) {
   if (!dc) return false;
 
   auto classDecl = dc->getSelfClassDecl();
-  return (classDecl && classDecl->usesObjCGenericsModel());
+  return (classDecl && classDecl->isTypeErasedGenericClass());
 }
 
 /// Update the result type given the foreign error convention that we will be
